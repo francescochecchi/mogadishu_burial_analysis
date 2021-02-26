@@ -319,11 +319,8 @@ source("banadir_covid_excess_burials.R")
       # get cemetery data
       x1 <- subset(obs, cemetery == i)
       
-      # for each quantity... 
-      for (j in c("graves_best_ipol", "graves_lci_ipol", "graves_uci_ipol")) {
-        x2 <- paste("new_", j, sep = "")
-        obs[obs$cemetery == i, x2] <- c(0, diff(x1[, j]))
-      }
+      # compute daily new graves
+      obs[obs$cemetery == i, x2] <- c(0, diff(x1[, "new_graves_best_ipol"]))
       
     }  
     
