@@ -16,8 +16,8 @@
   #...................................
   ## Time series of cemeteries and days (as date and sequential day numbers)
     # Determine start and end of analysis period (based on extent of dataset)
-    date_start <- as.Date( min(obs[, "date"], na.rm=TRUE) )
-    date_end <- as.Date( max(obs[, "date"], na.rm=TRUE) )
+    date_start <- date( min(obs[, "date"], na.rm=TRUE) )
+    date_end <- date( max(obs[, "date"], na.rm=TRUE) )
 
     # Construct time series
     dates <- seq(from = date_start, to = date_end , by = 1)
@@ -105,7 +105,7 @@
 
     # Merge dataset with time series
     obs <- merge(ts, obs, by = c("cemetery", "date"), all = TRUE)
-    obs[, "date"] <- as.Date(obs$date)
+    obs[, "date"] <- date(obs$date)
 
     # Factorise variables as needed
       for (i in colnames(obs)) {
@@ -228,7 +228,8 @@
           if (ocha_bdr[i, "week"] == 1 & ocha_bdr[i, "month"] == 12) {ocha_bdr[i, "epi_year"] <- ocha_bdr[i, "year"] + 1} 
           if (ocha_bdr[i, "week"] == 52 & ocha_bdr[i, "month"] == 1) {ocha_bdr[i, "epi_year"] <- ocha_bdr[i, "year"] - 1} 
         }      
-      
+      ocha_bdr[, "date"] <- as.Date(ocha_bdr$date)
+        
       # weekly totals
         # aggregate
         ocha_bdr_w <- aggregate(ocha_bdr[, grep("new_", colnames(ocha_bdr))], by = ocha_bdr[, c("epi_year", "week")], FUN = sum)

@@ -53,7 +53,7 @@
 ### Specify parameters
     
     # Candidate dates at which baseline period ends and epidemic epidemic period begins
-    date_knot_options <- as.Date(c("1Jan2020", "1Feb2020", "1Mar2020", "1Apr2020"), "%d%b%Y")
+    date_knot_options <- date(as.Date(c("1Jan2020", "1Feb2020", "1Mar2020", "1Apr2020"), "%d%b%Y") )
       
       # Main date for analysis
       date_knot <- date_knot_options[1]
@@ -209,7 +209,58 @@ source("banadir_covid_impute_graves.R")
       ggsave("burial_rate_over_time_wide.png", width = 26, height = 18, units = "cm", dpi = "print")    
       ggsave("burial_rate_over_time_long.png", width = 20, height = 20, units = "cm", dpi = "print")    
       
+   
+  #...................................   
+  ## Plot trends in rate of surface area expansion over time, by cemetery
+    # Preparatory steps
+      # data needed
+      x1 <- obs[is.na(obs$area) == FALSE, c("date", "cemetery", "area")]
+      
+      # generate area increase rate since the previous observation
+      x1 <- x1[order(x1[, "cemetery"], x1[, "date"]), ]
+      x2 <- c()
+      for (i in sort(unique(x1$cemetery) ) ) {
+        x3 <- subset(x1, cemetery == i)
+        x2 <- c(x2, NA, diff(x3$area) / as.integer(diff(x3$date)) )        
+
+      }
+
+      x1[, "area_rate"] <- x2
+      
+      # lag area increase rate so as to prepare data for step graph
+      x2 <- c()
+      for (i in sort(unique(x1$cemetery) ) ) {
+        x4 <- subset(x1, cemetery == i)
+        x2 <- c(x2, x4[-1, "area_rate"], NA)  
+      }
+
+      x1[, "area_rate_lag"] <- x2
+      x1[, "area_rate_lag"] <- ifelse(is.na(x1[, "area_rate_lag"]), x1[, "area_rate"], x1[, "area_rate_lag"])
   
+      
+    # Draw plot
+      plot <- ggplot(x1, aes(x = date, y = area_rate_lag) ) +
+              geom_step(size = 1, colour = brewer_pal(palette = "Dark2")(2)[1] ) +
+              annotate(geom = "rect", xmin = date_knot, xmax = max(x1$date), ymin = 0, ymax = Inf,
+                fill = brewer_pal(palette = "Reds")(9)[6], alpha = 0.3) +
+              scale_y_continuous("mean area increase per day", limits = c(0, NA) ) +
+              theme_bw() +
+              facet_wrap(~cemetery, ncol=2, scales = "free_y") +
+              scale_x_date("", minor_breaks=NULL, date_breaks="4 months", date_labels = "%b-%Y" ) +
+              theme(strip.text.x = element_text(color="grey20", size=11),
+                    axis.title.x = element_text(color="grey20", size=11), 
+                    axis.text.x = element_text(color = "grey20", size=10, angle=315, hjust=0, vjust=0),               
+                    axis.line.y = element_line(color = "grey20"),
+                    axis.ticks.y = element_line(color = "grey20"),
+                    axis.text.y = element_text(color = "grey20", size=11),
+                    axis.title.y = element_text(color="grey20", margin = margin(r = 10), size=11 ),
+                    plot.margin = unit(c(0.5,2,0.5,0.5), "cm")
+                    )
+      plot
+ 
+      ggsave("area_rate_over_time_wide.png", width = 26, height = 18, units = "cm", dpi = "print")    
+      ggsave("area_rate_over_time_long.png", width = 20, height = 20, units = "cm", dpi = "print")    
+      
   #...................................   
   ## Describe data for report
     # Create table
@@ -250,11 +301,11 @@ source("banadir_covid_impute_graves.R")
     
 
 #.........................................................................................                            
-### Estimating excess mortality
+### Estimating excess burials
 
-source("banadir_covid_estimate_mortality.R")
+source("banadir_covid_excess_burials.R")
       
-      
+            
 #.........................................................................................                            
 ### Comparing estimates with OCHA and Barakaat cemetery committee data, by cemetery
 
@@ -300,6 +351,7 @@ source("banadir_covid_estimate_mortality.R")
     x3 <- x3[, colnames(x3)[c(5, 1:4)]]
     obs_m <- rbind(x1, x3)
     obs_m[obs_m$cemetery == "Barakaat 1 + 2" & obs_m$new_graves_ocha == 0, "new_graves_ocha"] <- NA
+    obs_m[obs_m$month == 4 & obs_m$year == 2020, "new_graves_ocha"] <- NA
     
     # Merge in Barakaaat committee data
     obs_m <- merge(obs_m, barakaat_committee_m, by = c("cemetery", "year", "month"), all = TRUE)
@@ -307,9 +359,8 @@ source("banadir_covid_estimate_mortality.R")
     # Comparison months
     x1 <- intersect(which(is.na(obs_m$new_graves_ocha)), which(is.na(obs_m$new_graves_bdc)))
     x2 <- obs_m[-x1, ]
-    
-    which(is.na(obs_m[, c("new_graves_ocha", "new_graves_bdc")]))  
-    obs_m <- 
+    x2 <- subset(x2, ! month %in% c(10, 11))
+    write.csv(x2, "out_comparison_sources.csv", row.names = FALSE)
     
 #.........................................................................................
 ### ENDS
