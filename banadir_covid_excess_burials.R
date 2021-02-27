@@ -62,135 +62,294 @@
 
     }
 
+          
   #...................................   
-  ## Plot interpolated time series by day
+  ## Sum each cemetery time series into a single one for Banadir, and calculate corresponding burial rates per 10,000 person-days
     
-    # Plot by day
-    plot <- ggplot(obs, aes(fill = cemetery, colour = cemetery, y = new_graves_best_ipol, x = date)) +
+    # Sum all cemetery time series
+    bdr <- aggregate(obs[, c("graves_best_ipol", "new_graves_best_ipol")],
+      by = list(obs$date), FUN = sum)
+    colnames(bdr) <- c("date", "graves_best_ipol", "new_graves_best_ipol")
+
+    # Restrict observations to start of data availability period
+    bdr <- subset(bdr, date >= date_min )
+  
+    # Calculate alternative burial rates (per 10,000 per day)
+    bdr <- merge(bdr, unique(obs[, c("date", "pop_wp2015", "pop_wp2020")]), by = "date")
+    bdr[, "br_wp2015"] <- bdr[, "new_graves_best_ipol"] * 10000 / bdr[, "pop_wp2015"]
+    bdr[, "br_wp2020"] <- bdr[, "new_graves_best_ipol"] * 10000 / bdr[, "pop_wp2020"]
+    
+    # Add epidemic time
+    bdr <- merge(bdr, unique(ts[, c("date", "time_base", "time_covid")]), by = "date", x.all = TRUE)
+    
+    # Smooth pre-epidemic burial rate series and extrapolate into epidemic period (as counter-factual)
+    bdr[, "br_wp2015_base_s"] <- predict(smooth.spline(subset(bdr, time_covid == 0)[, c("time_base", "br_wp2015")],
+      cv = TRUE), bdr$time_base )$y
+    bdr[, "br_wp2020_base_s"] <- predict(smooth.spline(subset(bdr, time_covid == 0)[, c("time_base", "br_wp2020")],
+      cv = TRUE), bdr$time_base )$y
+    
+    # Smooth epidemic burial rate series
+    bdr[bdr$time_covid > 0, "br_wp2015_covid_s"] <- smooth.spline(subset(bdr, time_covid > 0)[, c("time_covid", "br_wp2015")],
+      cv = TRUE)$y
+    bdr[bdr$time_covid > 0, "br_wp2020_covid_s"] <- smooth.spline(subset(bdr, time_covid > 0)[, c("time_covid", "br_wp2020")],
+      cv = TRUE)$y
+
+  #...................................   
+  ## Add further information and save output
+
+    # Add OCHA burials, calculate resulting burial rates per capita and smooth the series
+    bdr <- merge(bdr, ocha_bdr[, c("date", "new_graves_ocha")], by = "date", all = TRUE)
+    
+    bdr[, "br_wp2015_ocha"] <- bdr[, "new_graves_ocha"] * 10000 / bdr[, "pop_wp2015"]
+    bdr[, "br_wp2020_ocha"] <- bdr[, "new_graves_ocha"] * 10000 / bdr[, "pop_wp2020"]
+    
+    bdr[! is.na(bdr$br_wp2015_ocha), "br_wp2015_ocha_s"] <- smooth.spline(subset(bdr, ! is.na(br_wp2015_ocha))[, c("time_base", "br_wp2015_ocha")],
+      cv= TRUE)$y
+    bdr[! is.na(bdr$br_wp2020_ocha), "br_wp2020_ocha_s"] <- smooth.spline(subset(bdr, ! is.na(br_wp2020_ocha))[, c("time_base", "br_wp2020_ocha")],
+      cv= TRUE)$y
+
+    # Add information on the number of images per day
+    obs_complete[, "n_images"] <- 1
+    x1 <- aggregate(obs_complete$n_images, by = list(obs_complete$date), FUN = sum)
+    colnames(x1) <- c("date", "n_images")
+    bdr <- merge(bdr, x1, by = "date", all.x = TRUE)
+    
+
+  #...................................   
+  ## Plot cemetery time series: burials and imagery availability
+
+    # Plot burials by day and cemetery
+    plot1 <- ggplot(obs, aes(fill = cemetery, colour = cemetery, y = new_graves_best_ipol, x = date)) +
       geom_bar(position="stack", stat="identity") +
       annotate(geom = "rect", xmin = date_knot, xmax = date_max, ymin = 0, ymax = Inf,
         fill = brewer_pal(palette = "Reds")(9)[6], alpha = 0.2) +
-      scale_y_continuous("new burials per day (interpolated)" , breaks=seq(0, 25, by = 5)) +
-      scale_x_date("", minor_breaks=NULL, date_breaks="1 month", limits = c(date_min, date_max), 
+      scale_y_continuous("new burials per day (interpolated)" , expand = c(0, 0), breaks=seq(0, 25, by = 5)) +
+      scale_x_date("", minor_breaks=NULL, date_breaks="3 months", limits = c(date_min, date_max), 
         date_labels = "%b-%Y", expand = expansion(add = c(-7, 7)) ) +
       scale_fill_brewer(palette="Dark2") +
       scale_colour_brewer(palette="Dark2") +
       theme_bw() +
+      guides(fill = guide_legend(nrow = 1, title = "Cemetery: ")) +
+      guides(colour = FALSE) +
       theme(axis.title.x = element_text(color="grey20", size=11), 
         axis.text.x = element_text(color = "grey20", size=10, angle=315, hjust=0, vjust=0),               
         axis.line.y = element_line(color = "grey20"),
         axis.ticks.y = element_line(color = "grey20"),
         axis.text.y = element_text(color = "grey20", size=11),
         axis.title.y = element_text(color="grey20", margin = margin(r = 10), size=11 ),
-        plot.margin = unit(c(0.5,2,0.5,0.5), "cm")
+        plot.margin = unit(c(0.5,2,0.5,0.5), "cm"),
+        legend.position = "top",
+        legend.title = element_text(color = "grey20", size = 10),
+        legend.text = element_text(color = "grey20"),
+        legend.box = "horizontal"
       )
     
-    plot
+    plot1
     ggsave("out_daily_trends_burials.png", width = 25, height = 15, units = "cm", dpi = "print")    
-   
-          
-  #...................................   
-  ## Sum each cemetery time series into a single one for Banadir
-    
-    # Sum all cemetery time series
-    bdr <- aggregate(obs[, "graves_best_ipol"],
-      by = list(obs$date), FUN = sum)
-    colnames(bdr) <- c("date", "graves_best_ipol")
 
-    # Restrict observations to data availability period
-    bdr <- subset(bdr, date %in% c((date_min+1):date_max) )
-
-  #...................................   
-  ## Define baseline and calculate daily total and excess burials
+    # Plot availability of imagery per day by cemetery
+    x4<-obs
+    obs <- merge(obs, obs_complete[, c("date", "cemetery", "n_images")], by = c("date", "cemetery"), all.x = TRUE)
+    obs[, "image_today"] <- obs[, "n_images"]
+    obs[is.na(obs$image_today), "image_today"] <- 0
     
-    # Calculate new graves every day
-    bdr <- bdr[order(bdr[, "date"]), ]
-    bdr[, paste("new_", "graves_best_ipol", sep = "")] <- c(0, diff(bdr[, "graves_best_ipol"]))
-
-    # Baseline = median of time before the start of the epidemic
-    baseline <- median(bdr[bdr$date < date_knot, "new_graves_best_ipol"])
-    
-    # Calculate excess new graves every day
-    bdr[, "new_graves_excess"] <- bdr[, "new_graves_best_ipol"] - baseline
-    
-    # Add OCHA burials
-    bdr <- merge(bdr, ocha_bdr[, c("date", "new_graves_ocha")], by = "date", all = TRUE)
-    
-    # Write output
-    write.csv(bdr[, c("date", "new_graves_best_ipol", "new_graves_excess", "new_graves_ocha")], 
-      "out_bdr_daily_burials.csv", row.names= FALSE)
-          
-    
-  #...................................   
-  ## Convert daily to weekly and monthly burials
-  
-    # Figure out year, month and epidemiological week
-    bdr[, "year"] <- year(bdr[, "date"])
-    bdr[, "month"] <- month(bdr[, "date"])
-    bdr[, "week"] <- isoweek(bdr[, "date"])
-      # epidemiological year (for weeks that straddle two calendar years)
-      bdr[, "epi_year"] <- bdr[, "year"]
-      for (i in 1:nrow(bdr)) {
-        if (bdr[i, "week"] == 1 & bdr[i, "month"] == 12) {bdr[i, "epi_year"] <- bdr[i, "year"] + 1} 
-        if (bdr[i, "week"] == 52 & bdr[i, "month"] == 1) {bdr[i, "epi_year"] <- bdr[i, "year"] - 1} 
-      }
-    
-    # Weekly new graves
-      # aggregate
-      bdr_w <- aggregate(bdr[, grep("new_", colnames(bdr))], by = bdr[, c("epi_year", "week")], FUN = sum)
-    
-      # add dates back in (end of week)
-      x1 <- aggregate(bdr$date, by = bdr[, c("epi_year", "week")], FUN = max)
-      colnames(x1) <- c("epi_year", "week", "date")
-      bdr_w <- merge(bdr_w, x1, by = c("epi_year", "week"))
-
-      # write output
-      write.csv(bdr_w[, c("epi_year", "week", "date", "new_graves_best_ipol")], 
-        "out_bdr_weekly_burials.csv", row.names= FALSE)
-      
-    # Monthly new graves
-      # aggregate
-      bdr_m <- aggregate(bdr[, grep("new_", colnames(bdr))], by = bdr[, c("year", "month")], FUN = sum)
-      
-      # add dates back in (end of month)
-      x1 <- aggregate(bdr$date, by = bdr[, c("year", "month")], FUN = max)
-      colnames(x1) <- c("year", "month", "date")
-      bdr_m <- merge(bdr_m, x1, by = c("year", "month"))
-      
-      # write output
-      write.csv(bdr_m[, c("year", "month", "date", "new_graves_best_ipol")], 
-        "out_bdr_monthly_burials.csv", row.names= FALSE)
-      
-  #...................................   
-  ## Compute total excess deaths
-  x1 <- sum(bdr[bdr$y == 2020, "new_graves_excess"], na.rm = TRUE)
-  print(paste("total excess burials = ", x1, sep = "") )    
-                
-  #...................................   
-  ## Plot overall time series
-    
-    # Plot by day
-    plot <- ggplot(bdr) +
-      geom_line(aes(x = date, y = new_graves_best_ipol), colour = palette_cb[4], size = 1.5, alpha = 0.5) +
-      geom_line(aes(x = date, y = new_graves_ocha), colour = palette_cb[6], size = 1, alpha = 0.3) +
-      geom_point(aes(x = date, y = new_graves_ocha), colour = palette_cb[6], size = 2, alpha = 0.8) +
-      geom_line(aes(x = date, y = (baseline*7) ), linetype = "dashed", colour = brewer_pal(palette = "Reds")(9)[6],
-        size = 1, alpha = 0.5) +
-      annotate(geom = "rect", xmin = date_knot, xmax = max(bdr_w$date), ymin = 0, ymax = Inf,
-        fill = brewer_pal(palette = "Reds")(9)[6], alpha = 0.2) +
-      scale_y_continuous("new burials per week" , breaks=seq(0, 250, by = 25)) +
-      scale_x_date("", minor_breaks=NULL, date_breaks="1 month", limits = c(min(bdr_w$date), max(bdr_w$date)), 
+    plot2 <- ggplot(subset(obs, image_today > 0), aes(x = date, colour = cemetery, fill = cemetery, y = factor(image_today))) +
+      geom_point(size = 3) +
+      facet_grid(cemetery ~ .) +
+      scale_fill_brewer(palette="Dark2") +
+      scale_colour_brewer(palette="Dark2") +
+      scale_x_date("", minor_breaks=NULL, date_breaks="3 months", limits = c(date_min, date_max), 
         date_labels = "%b-%Y", expand = expansion(add = c(-7, 7)) ) +
       theme_bw() +
       theme(axis.title.x = element_text(color="grey20", size=11), 
+        axis.text.x = element_text(color = "grey20", size=10, angle=315, hjust=0, vjust=0),
+        strip.text.y = element_text(color = "grey20", size=10, angle=0, hjust = 0),
+        axis.line.y = element_line(color = "grey20"),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        plot.margin = unit(c(0.5,2,0.5,0.5), "cm"),
+        legend.position = "none"
+      )
+ 
+    plot2
+    ggsave("out_daily_image_avail.png", width = 25, height = 5, units = "cm", dpi = "print")    
+    
+    # Combine the two above plots
+    cowplot::plot_grid(plot1 + theme(axis.text.x = element_blank(),
+      axis.ticks.x = element_blank(), axis.title.x = element_blank() ), plot2,
+      ncol = 1, nrow = 2, labels = c("A", "B"), rel_heights = c(1, 0.4), align = "v", axis ="lrbt")
+
+    ggsave("out_daily_burials_image_combined.png", width = 25, height = 25, units = "cm", dpi = "print")
+        
+
+  #...................................   
+  ## Plot overall time series: burial rate
+
+    # Prepare data
+    x1 <- reshape2::melt(bdr, id.vars = "date", 
+      measure.vars = grep("br_", colnames(bdr), value = TRUE) )
+    x2 <- data.frame("variable" = unique(x1$variable), "estimate" = c("interpolated (high)",
+      "interpolated (low)", "pre-pandemic, smoothed (high)", "pre-pandemic, smoothed (low)",
+      "pandemic, smoothed (high)", "pandemic, smoothed (low)", 
+      "UN OCHA (high)", "UN OCHA (low)", "UN OCHA, smoothed (high)", "UN OCHA, smoothed (low)") )
+    x1 <- merge(x1, x2, by = "variable", x.all = TRUE)
+    
+    # Plot burial rate per 10,000 by day, by population source, including smoothing - without OCHA
+    plot <- ggplot(subset(x1, ! variable %in% grep("ocha", unique(x1$variable), value = TRUE) ), 
+      aes(x = date, y = value, colour = estimate, alpha = estimate, 
+      size = estimate, linetype = estimate)) +
+      geom_step() +
+      theme_bw() +
+      annotate(geom = "rect", xmin = date_knot, xmax = date_max, ymin = 0, ymax = Inf,
+        fill = brewer_pal(palette = "Reds")(9)[6], alpha = 0.2) +
+      scale_y_continuous("burial rate per 10,000 person-days" , limits = c(0, 0.12), 
+        breaks=seq(0, 0.12, by = 0.02)) +
+      scale_x_date("", minor_breaks=NULL, date_breaks="1 month", limits = c(date_min, date_max), 
+        date_labels = "%b-%Y", expand = expansion(add = c(-7, 7)) ) +
+      scale_colour_manual(values = c(brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8]
+        ) ) +
+      scale_alpha_manual(values = c(0.1, 0.1, 0.7, 0.7, 0.7, 0.7 ) ) +
+      scale_size_manual(values = c(0.5, 0.5, 1.25, 1.25, 1.25, 1.25 ) ) +
+      scale_linetype_manual(values = c("solid", "solid", "solid", "solid", "dotted", "dotted")) +
+      theme(axis.title.x = element_text(color="grey20", size=11), 
         axis.text.x = element_text(color = "grey20", size=10, angle=315, hjust=0, vjust=0),               
         axis.line.y = element_line(color = "grey20"),
         axis.ticks.y = element_line(color = "grey20"),
         axis.text.y = element_text(color = "grey20", size=11),
         axis.title.y = element_text(color="grey20", margin = margin(r = 10), size=11 ),
-        plot.margin = unit(c(0.5,2,0.5,0.5), "cm")
+        plot.margin = unit(c(0.5,2,0.5,0.5), "cm"),
+        legend.position = "bottom"
       )
     
     plot
-    ggsave("out_overall_weekly_trends_burials.png", width = 25, height = 15, units = "cm", dpi = "print")    
-             
+    ggsave("out_daily_trends_burial_rate.png", width = 25, height = 15, units = "cm", dpi = "print")    
+   
+ 
+    # Plot burial rate per 10,000 by day, by population source, including smoothing - with OCHA and only for 2020
+    plot <- ggplot(subset(x1, date > date_knot), aes(x = date, y = value, colour = estimate, alpha = estimate, 
+      size = estimate, linetype = estimate)) +
+      geom_step() +
+      theme_bw() +
+      scale_y_continuous("burial rate per 10,000 person-days" , limits = c(0, 0.25), 
+        breaks=seq(0, 0.25, by = 0.05)) +
+      scale_x_date("", minor_breaks=NULL, date_breaks="1 month", limits = c(date_knot, date_max), 
+        date_labels = "%b-%Y", expand = expansion(add = c(-7, 7)) ) +
+      scale_colour_manual(values = c(brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "Blues")(9)[5],
+                                     brewer_pal(palette = "Blues")(9)[8],
+                                     brewer_pal(palette = "Blues")(9)[5],
+                                     brewer_pal(palette = "Blues")(9)[8]
+        ) ) +
+      scale_alpha_manual(values = c(0.2, 0.2, 0.7, 0.7, 0.7, 0.7, 0.2, 0.2, 0.7, 0.7 ) ) +
+      scale_size_manual(values = c(0.5, 0.5, 1.25, 1.25, 1.25, 1.25, 0.5, 0.5, 1.25, 1.25 ) ) +
+      scale_linetype_manual(values = c("solid", "solid", "solid", "solid", 
+        "dotted", "dotted", "solid", "solid", "solid", "solid")) +
+      theme(axis.title.x = element_text(color="grey20", size=11), 
+        axis.text.x = element_text(color = "grey20", size=10, angle=315, hjust=0, vjust=0),               
+        axis.line.y = element_line(color = "grey20"),
+        axis.ticks.y = element_line(color = "grey20"),
+        axis.text.y = element_text(color = "grey20", size=11),
+        axis.title.y = element_text(color="grey20", margin = margin(r = 10), size=11 ),
+        plot.margin = unit(c(0.5,2,0.5,0.5), "cm"),
+        legend.position = "bottom"
+      )
+    
+    plot
+    ggsave("out_daily_trends_burial_rate_2020.png", width = 15, height = 15, units = "cm", dpi = "print")    
+   
+  
+    # Plot burial rate per 10,000 by day, by population source, including smoothing - without OCHA and only for 2020
+    plot <- ggplot(subset(x1, date > date_knot & ! variable %in% grep("ocha", unique(x1$variable), value = TRUE)),
+      aes(x = date, y = value, colour = estimate, alpha = estimate, 
+      size = estimate, linetype = estimate)) +
+      geom_step() +
+      theme_bw() +
+      scale_y_continuous("burial rate per 10,000 person-days" , limits = c(0, 0.12), 
+        breaks=seq(0, 0.12, by = 0.02)) +
+      scale_x_date("", minor_breaks=NULL, date_breaks="1 month", limits = c(date_knot, date_max), 
+        date_labels = "%b-%Y", expand = expansion(add = c(-7, 7)) ) +
+      scale_colour_manual(values = c(brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "BuGn")(9)[5],
+                                     brewer_pal(palette = "BuGn")(9)[8],
+                                     brewer_pal(palette = "Blues")(9)[5],
+                                     brewer_pal(palette = "Blues")(9)[8],
+                                     brewer_pal(palette = "Blues")(9)[5],
+                                     brewer_pal(palette = "Blues")(9)[8]
+        ) ) +
+      scale_alpha_manual(values = c(0.2, 0.2, 0.7, 0.7, 0.7, 0.7, 0.2, 0.2, 0.7, 0.7 ) ) +
+      scale_size_manual(values = c(0.5, 0.5, 1.25, 1.25, 1.25, 1.25, 0.5, 0.5, 1.25, 1.25 ) ) +
+      scale_linetype_manual(values = c("solid", "solid", "solid", "solid", 
+        "dotted", "dotted", "solid", "solid", "solid", "solid")) +
+      theme(axis.title.x = element_text(color="grey20", size=11), 
+        axis.text.x = element_text(color = "grey20", size=10, angle=315, hjust=0, vjust=0),               
+        axis.line.y = element_line(color = "grey20"),
+        axis.ticks.y = element_line(color = "grey20"),
+        axis.text.y = element_text(color = "grey20", size=11),
+        axis.title.y = element_text(color="grey20", margin = margin(r = 10), size=11 ),
+        plot.margin = unit(c(0.5,2,0.5,0.5), "cm"),
+        legend.position = "bottom"
+      )
+    
+    plot
+    ggsave("out_daily_trends_burial_rate_2020_no_ocha.png", width = 15, height = 15, units = "cm", dpi = "print")    
+   
+
+  #...................................   
+  ## Calculate excess mortality
+
+    # Compute excess mortality multiplier for each population source (actual burial rate / counterfactual baseline)
+    bdr[, "rr_wp2015"] <- bdr$br_wp2015_covid_s / bdr$br_wp2015_base_s
+    bdr[, "rr_wp2020"] <- bdr$br_wp2020_covid_s / bdr$br_wp2020_base_s
+        
+    # Set up output - one value for each possible baseline crude death rate and population series
+    out <- data.frame("population_source" = c(rep("WorldPop 2015", length(cdr_baseline)), rep("WorldPop 2020", length(cdr_baseline))) ,
+      "baseline_cdr" = rep(cdr_baseline, 2) )
+    out[, c("baseline_deaths", "excess_deaths", "total_deaths")] <- NA
+
+    # For each possible set of sensitivity values...
+    for (i in 1:nrow(out)) {
+      
+      # select data
+      if (out[i, "population_source"] == "WorldPop 2015") {x1 <- bdr[, c("date", "pop_wp2015", "br_wp2015_base_s", "rr_wp2015")]}
+      if (out[i, "population_source"] == "WorldPop 2020") {x1 <- bdr[, c("date", "pop_wp2020", "br_wp2020_base_s", "rr_wp2020")]}
+      colnames(x1) <- c("date", "pop", "br_base", "rr")
+     
+      # scale baseline burial rate to baseline death rate
+      x1[, "cdr_base"] <- x1[, "br_base"] * out[i, "baseline_cdr"] / x1[x1$date == date_min, "br_base"]
+      
+      # compute actual death rate during pandemic
+      x1[, "cdr_actual"] <- x1[, "cdr_base"] * x1[, "rr"]
+      
+      # compute excess death rate
+      x1[, "cdr_excess"] <- x1[, "cdr_actual"] - x1[, "cdr_base"]
+      
+      # compute death tolls
+      x1 <- subset(x1, date >= date_knot & date <= date_max)
+      x1[, c("toll_base",  "toll_excess", "toll_total")] <- x1[, c("cdr_base", "cdr_excess", "cdr_actual")] * x1[, "pop"] / 10000
+      out[i, c("baseline_deaths", "excess_deaths", "total_deaths")] <- colSums(x1[, c("toll_base",  "toll_excess", "toll_total")], na.rm = TRUE )
+      out[i, c("baseline_deaths", "excess_deaths", "total_deaths")] <- round(out[i, c("baseline_deaths", "excess_deaths", "total_deaths")]/100, digits = 0) * 100
+      
+    }
+    
+    # Save output
+    write.csv(bdr, "out_bdr_daily_estimates.csv", row.names= FALSE)
+    write.csv(out, "out_estimated_deaths.csv", row.names = FALSE)
+    

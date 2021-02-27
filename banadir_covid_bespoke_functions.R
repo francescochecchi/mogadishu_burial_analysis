@@ -340,30 +340,6 @@
   }
 
    
-  
-  # #...................................
-  # ## Function to fit a simple linear model and display clean results
-  #   f_lm <- function(f_dep, f_preds, f_data) {
-  #       # write the model formula
-  #       form <- as.formula( paste(f_dep, " ~ ", paste(f_preds, collapse= " + "), sep="")  )
-  #       # fit linear model
-  #       fit <- lm(form, data = f_data)
-  #       # return fit
-  #       return(fit)
-  #   }
-  # 
-  # #...................................
-  # ## Function to fit a mixed linear model for longitudinal data and display clean results
-  #   f_lmm <- function(f_dep, f_preds, f_reff, f_data) {
-  #     # write the model formula
-  #       form <- as.formula( paste(f_dep, " ~ ", paste(f_preds, collapse= " + "), " + ", f_reff, sep="")  )
-  #     # fit linear mixed model
-  #       fit <- lmer(form, data = f_data, REML = FALSE)
-  #     # return fit
-  #       return(fit)
-  #   }
-
-
   #...................................  
   ## Function to plot and output model predictions vs. observations for each cemetery, overall and for a specific date range
     f_plot_gof <- function(f_fit, f_data, f_date_range, f_pred_smooth, f_spar) {
@@ -454,7 +430,6 @@
     }
     
     
-
   #...................................      
   ## Function to plot smoothed fit and data for each single cemetery
     f_plot_single <- function(f_fit, f_data) {
@@ -510,16 +485,16 @@
       f_ipol <- data.frame(f_ipol)
       colnames(f_ipol) <- c("time_base", "predictions")
       x1 <- merge(f_ipol, f_data, by = "time_base")
-      colnames(x1)[grep("graves", colnames(x1) )] <- "graves"
-      
+      colnames(x1)[grep("graves|area", colnames(x1) )] <- "observations"
+
       # plot
         plot <- ggplot(x1) +
            geom_line(aes(x = date, y = predictions ), linetype = "dashed", size = 0.7,  
              colour = brewer_pal(palette = "Dark2")(2)[2] ) +
-           geom_point(aes(x = date, y = graves, colour = period_covid), size = 1.5) +
+           geom_point(aes(x = date, y = observations, colour = period_covid), size = 1.5) +
            geom_line(aes(x = date, y = predictions, colour = period_covid), size = 0.9 ) +
            scale_colour_manual(values = brewer_pal(palette = "Dark2")(2)) +
-           scale_y_continuous("number of graves") +
+           scale_y_continuous("number of graves or surface area") +
            theme_bw() +
            guides(fill = FALSE) +
            theme(legend.position="bottom", legend.direction="horizontal") +

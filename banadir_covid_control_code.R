@@ -18,7 +18,7 @@
     
     # List of required packages
     x1 <- c("ggplot2", "scales", "readxl", "data.table", "influence.ME", "lme4", "nlme", "broom.mixed", "lubridate", 
-            "RColorBrewer", "lattice", "zoo", "car", "influence.ME", "MASS", "mgcv", "glmmTMB", "gamlss", "gtools")
+            "RColorBrewer", "lattice", "zoo", "car", "influence.ME", "MASS", "mgcv", "glmmTMB", "gamlss", "ggpubr", "gtools")
     
     # Install any packages not yet installed
     x2 <- x1 %in% row.names(installed.packages())
@@ -58,15 +58,14 @@
       # Main date for analysis
       date_knot <- date_knot_options[1]
     
-    # Number of folds for cross-validation
-    k_folds <- NA   # NA means leave-one-out cross-validation
+    # # Number of runs for bootstrapping
+    # n_boot <- 1000
+    #   
+    # # Number of folds for cross-validation
+    # k_folds <- NA   # NA means leave-one-out cross-validation
     
-    # Whether an offset should be applied to the number of graves when fitting models (offset = starting number of graves)
-    graves_offset <- TRUE
-    
-    # Number of bootstrap replicates for confidence interval estimation
-    n_boot <- 1000
-  
+    # Range of baseline crude death rate (expressed as deaths per 10,000 per day)
+    cdr_baseline <- seq(0.20, 0.60, by = 0.05)
 
 #.........................................................................................
 ### Bespoke functions
@@ -155,7 +154,7 @@ source("banadir_covid_impute_graves.R")
                     plot.margin = unit(c(0.5,2,0.5,0.5), "cm")
                     )
       plot
-      ggsave("burials_over_time.png", width = 18, height = 18, units = "cm", dpi = "print")    
+      ggsave("out_burials_over_time.png", width = 18, height = 18, units = "cm", dpi = "print")    
 
    
   #...................................   
@@ -206,8 +205,8 @@ source("banadir_covid_impute_graves.R")
                     )
       plot
  
-      ggsave("burial_rate_over_time_wide.png", width = 26, height = 18, units = "cm", dpi = "print")    
-      ggsave("burial_rate_over_time_long.png", width = 20, height = 20, units = "cm", dpi = "print")    
+      ggsave("out_burial_rate_over_time_wide.png", width = 26, height = 18, units = "cm", dpi = "print")    
+      ggsave("out_burial_rate_over_time_long.png", width = 20, height = 20, units = "cm", dpi = "print")    
       
    
   #...................................   
@@ -258,8 +257,8 @@ source("banadir_covid_impute_graves.R")
                     )
       plot
  
-      ggsave("area_rate_over_time_wide.png", width = 26, height = 18, units = "cm", dpi = "print")    
-      ggsave("area_rate_over_time_long.png", width = 20, height = 20, units = "cm", dpi = "print")    
+      ggsave("out_area_rate_over_time_wide.png", width = 26, height = 18, units = "cm", dpi = "print")    
+      ggsave("out_area_rate_over_time_long.png", width = 20, height = 20, units = "cm", dpi = "print")    
       
   #...................................   
   ## Describe data for report
