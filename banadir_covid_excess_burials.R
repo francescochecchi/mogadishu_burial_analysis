@@ -268,7 +268,7 @@
       )
     
     plot
-    ggsave("out_daily_trends_burial_rate_2020.png", width = 15, height = 15, units = "cm", dpi = "print")    
+    ggsave("out_daily_trends_burial_rate_2020.png", width = 30, height = 15, units = "cm", dpi = "print")    
    
   
     # Plot burial rate per 10,000 by day, by population source, including smoothing - without OCHA and only for 2020
@@ -309,7 +309,7 @@
       )
     
     plot
-    ggsave("out_daily_trends_burial_rate_2020_no_ocha.png", width = 15, height = 15, units = "cm", dpi = "print")    
+    ggsave("out_daily_trends_burial_rate_2020_no_ocha.png", width = 30, height = 15, units = "cm", dpi = "print")    
    
 
   #...................................   

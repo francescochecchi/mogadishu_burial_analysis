@@ -119,7 +119,13 @@ source("banadir_covid_prepare_data.R")
    
 source("banadir_covid_impute_graves.R")                         
     
-    
+
+#.........................................................................................                            
+### Estimating excess burials
+
+source("banadir_covid_excess_burials.R")
+      
+            
 #.........................................................................................      
 ### Describing trends in graves and other data characteristics
   
@@ -272,7 +278,7 @@ source("banadir_covid_impute_graves.R")
         "graves_cum", "area_start", "area_end")] <- NA
       for (i in 1:length(out_descr$cemetery) ) {
         # select data
-        x1 <- subset(obs, is.na(graves) == FALSE & cemetery == out_descr[i, "cemetery"] )
+        x1 <- subset(obs, cemetery == out_descr[i, "cemetery"] & image_today == 1 )
         # district
         out_descr[i, "district"] <- unique(as.character(x1$district) )
         # status at start of analysis period
@@ -299,12 +305,6 @@ source("banadir_covid_impute_graves.R")
       write.csv(out_descr, "out_table_description_cemeteries.csv", row.names = FALSE)
     
 
-#.........................................................................................                            
-### Estimating excess burials
-
-source("banadir_covid_excess_burials.R")
-      
-            
 #.........................................................................................                            
 ### Comparing estimates with OCHA and Barakaat cemetery committee data, by cemetery
 
