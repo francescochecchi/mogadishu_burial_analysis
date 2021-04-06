@@ -1,11 +1,16 @@
-## Burial patterns during the first COVID-19 epidemic wave in Mogadishu, Somalia: Analysis of satellite imagery
+# Burial patterns during the first COVID-19 epidemic wave in Mogadishu, Somalia: Analysis of satellite imagery
 
 # Notes on data and R analysis code
 30 March 2021
+
 Francesco Checchi
+
 Department of Infectious Disease Epidemiology
+
 Faculty of Epidemiology and Population Health, Keppel St
+
 London School of Hygiene and Tropical Medicine
+
 Francesco.checchi@lshtm.ac.uk
 
 ## Background on the study
