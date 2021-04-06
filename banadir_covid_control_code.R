@@ -84,7 +84,7 @@ source("banadir_covid_bespoke_functions.R")
   #...................................      
   ## Read in all the datasets needed
     # Which datasets
-    x1 <- c("obs", "cemeteries", "population", "ocha", "barakaat_committee")
+    x1 <- c("obs", "cemeteries", "population", "barakaat_committee")
     
     # For each dataset...
     for (i in x1) {
@@ -306,7 +306,7 @@ source("banadir_covid_excess_burials.R")
     
 
 #.........................................................................................                            
-### Comparing estimates with OCHA and Barakaat cemetery committee data, by cemetery
+### Comparing estimates with Barakaat cemetery committee data, by cemetery
 
   #...................................   
   ## Prepare data
@@ -329,31 +329,19 @@ source("banadir_covid_excess_burials.R")
     obs_m <-  aggregate(obs[, "new_graves_best_ipol"], by = obs[, c("cemetery", "year", "month")], FUN = sum) 
     colnames(obs_m) <- c("cemetery", "year", "month", "new_graves_best_ipol")     
 
-    # OCHA dataset
-    ocha[, "month"] <- month(ocha[, "date"])    
-    ocha[, "year"] <- year(ocha[, "date"])    
-    ocha_m <-  aggregate(ocha[, "graves_ocha"], by = ocha[, c("cemetery", "year", "month")], FUN = sum) 
-    colnames(ocha_m) <- c("cemetery", "year", "month", "new_graves_ocha")     
-    
-    # Merge OCHA into main dataset
-    obs_m <- merge(obs_m, ocha_m, by = c("cemetery", "year", "month"), all = TRUE)
-    obs_m[obs_m$year == 2020 & obs_m$month > 9, "new_graves_best_ipol"] <- NA
-    
     # Combine Barakaat 1 and 2 into one
     x1 <- subset(obs_m, ! cemetery %in% c("Barakaat 1", "Barakaat 2"))
     x2 <- subset(obs_m, cemetery %in% c("Barakaat 1", "Barakaat 2"))
-    x3 <- aggregate(x2[, c("new_graves_best_ipol", "new_graves_ocha")], by = x2[, c("year", "month")], FUN = sum, na.rm = TRUE)  
+    x3 <- aggregate(x2[, "new_graves_best_ipol"], by = x2[, c("year", "month")], FUN = sum, na.rm = TRUE)  
     x3[, "cemetery"] <- "Barakaat 1 + 2"
     x3 <- x3[, colnames(x3)[c(5, 1:4)]]
     obs_m <- rbind(x1, x3)
-    obs_m[obs_m$cemetery == "Barakaat 1 + 2" & obs_m$new_graves_ocha == 0, "new_graves_ocha"] <- NA
-    obs_m[obs_m$month == 4 & obs_m$year == 2020, "new_graves_ocha"] <- NA
-    
+
     # Merge in Barakaaat committee data
     obs_m <- merge(obs_m, barakaat_committee_m, by = c("cemetery", "year", "month"), all = TRUE)
     
     # Comparison months
-    x1 <- intersect(which(is.na(obs_m$new_graves_ocha)), which(is.na(obs_m$new_graves_bdc)))
+    x1 <- which(is.na(obs_m$new_graves_bdc))
     x2 <- obs_m[-x1, ]
     x2 <- subset(x2, ! month %in% c(10, 11))
     write.csv(x2, "out_comparison_sources.csv", row.names = FALSE)

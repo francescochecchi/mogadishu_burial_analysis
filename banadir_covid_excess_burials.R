@@ -97,17 +97,6 @@
   #...................................   
   ## Add further information and save output
 
-    # Add OCHA burials, calculate resulting burial rates per capita and smooth the series
-    bdr <- merge(bdr, ocha_bdr[, c("date", "new_graves_ocha")], by = "date", all = TRUE)
-    
-    bdr[, "br_wp2015_ocha"] <- bdr[, "new_graves_ocha"] * 10000 / bdr[, "pop_wp2015"]
-    bdr[, "br_wp2020_ocha"] <- bdr[, "new_graves_ocha"] * 10000 / bdr[, "pop_wp2020"]
-    
-    bdr[! is.na(bdr$br_wp2015_ocha), "br_wp2015_ocha_s"] <- smooth.spline(subset(bdr, ! is.na(br_wp2015_ocha))[, c("time_base", "br_wp2015_ocha")],
-      cv= TRUE)$y
-    bdr[! is.na(bdr$br_wp2020_ocha), "br_wp2020_ocha_s"] <- smooth.spline(subset(bdr, ! is.na(br_wp2020_ocha))[, c("time_base", "br_wp2020_ocha")],
-      cv= TRUE)$y
-
     # Add information on the number of images per day
     obs_complete[, "n_images"] <- 1
     x1 <- aggregate(obs_complete$n_images, by = list(obs_complete$date), FUN = sum)
@@ -191,12 +180,11 @@
       measure.vars = grep("br_", colnames(bdr), value = TRUE) )
     x2 <- data.frame("variable" = unique(x1$variable), "estimate" = c("interpolated (high)",
       "interpolated (low)", "pre-pandemic, smoothed (high)", "pre-pandemic, smoothed (low)",
-      "pandemic, smoothed (high)", "pandemic, smoothed (low)", 
-      "UN OCHA (high)", "UN OCHA (low)", "UN OCHA, smoothed (high)", "UN OCHA, smoothed (low)") )
+      "pandemic, smoothed (high)", "pandemic, smoothed (low)") )
     x1 <- merge(x1, x2, by = "variable", x.all = TRUE)
     
-    # Plot burial rate per 10,000 by day, by population source, including smoothing - without OCHA
-    plot <- ggplot(subset(x1, ! variable %in% grep("ocha", unique(x1$variable), value = TRUE) ), 
+    # Plot burial rate per 10,000 by day, by population source, including smoothing
+    plot <- ggplot(x1, 
       aes(x = date, y = value, colour = estimate, alpha = estimate, 
       size = estimate, linetype = estimate)) +
       geom_step() +
@@ -231,48 +219,8 @@
     ggsave("out_daily_trends_burial_rate.png", width = 25, height = 15, units = "cm", dpi = "print")    
    
  
-    # Plot burial rate per 10,000 by day, by population source, including smoothing - with OCHA and only for 2020
-    plot <- ggplot(subset(x1, date > date_knot), aes(x = date, y = value, colour = estimate, alpha = estimate, 
-      size = estimate, linetype = estimate)) +
-      geom_step() +
-      theme_bw() +
-      scale_y_continuous("burial rate per 10,000 person-days" , limits = c(0, 0.25), 
-        breaks=seq(0, 0.25, by = 0.05)) +
-      scale_x_date("", minor_breaks=NULL, date_breaks="1 month", limits = c(date_knot, date_max), 
-        date_labels = "%b-%Y", expand = expansion(add = c(-7, 7)) ) +
-      scale_colour_manual(values = c(brewer_pal(palette = "BuGn")(9)[5],
-                                     brewer_pal(palette = "BuGn")(9)[8],
-                                     brewer_pal(palette = "BuGn")(9)[5],
-                                     brewer_pal(palette = "BuGn")(9)[8],
-                                     brewer_pal(palette = "BuGn")(9)[5],
-                                     brewer_pal(palette = "BuGn")(9)[8],
-                                     brewer_pal(palette = "BuGn")(9)[5],
-                                     brewer_pal(palette = "BuGn")(9)[8],
-                                     brewer_pal(palette = "Blues")(9)[5],
-                                     brewer_pal(palette = "Blues")(9)[8],
-                                     brewer_pal(palette = "Blues")(9)[5],
-                                     brewer_pal(palette = "Blues")(9)[8]
-        ) ) +
-      scale_alpha_manual(values = c(0.2, 0.2, 0.7, 0.7, 0.7, 0.7, 0.2, 0.2, 0.7, 0.7 ) ) +
-      scale_size_manual(values = c(0.5, 0.5, 1.25, 1.25, 1.25, 1.25, 0.5, 0.5, 1.25, 1.25 ) ) +
-      scale_linetype_manual(values = c("solid", "solid", "solid", "solid", 
-        "dotted", "dotted", "solid", "solid", "solid", "solid")) +
-      theme(axis.title.x = element_text(color="grey20", size=11), 
-        axis.text.x = element_text(color = "grey20", size=10, angle=315, hjust=0, vjust=0),               
-        axis.line.y = element_line(color = "grey20"),
-        axis.ticks.y = element_line(color = "grey20"),
-        axis.text.y = element_text(color = "grey20", size=11),
-        axis.title.y = element_text(color="grey20", margin = margin(r = 10), size=11 ),
-        plot.margin = unit(c(0.5,2,0.5,0.5), "cm"),
-        legend.position = "bottom"
-      )
-    
-    plot
-    ggsave("out_daily_trends_burial_rate_2020.png", width = 30, height = 15, units = "cm", dpi = "print")    
-   
-  
-    # Plot burial rate per 10,000 by day, by population source, including smoothing - without OCHA and only for 2020
-    plot <- ggplot(subset(x1, date > date_knot & ! variable %in% grep("ocha", unique(x1$variable), value = TRUE)),
+    # Plot burial rate per 10,000 by day, by population source, including smoothing - only for 2020
+    plot <- ggplot(subset(x1, date > date_knot),
       aes(x = date, y = value, colour = estimate, alpha = estimate, 
       size = estimate, linetype = estimate)) +
       geom_step() +
@@ -309,7 +257,7 @@
       )
     
     plot
-    ggsave("out_daily_trends_burial_rate_2020_no_ocha.png", width = 30, height = 15, units = "cm", dpi = "print")    
+    ggsave("out_daily_trends_burial_rate_2020.png", width = 30, height = 15, units = "cm", dpi = "print")    
    
 
   #...................................   

@@ -3,7 +3,7 @@
 #..........................................................................................
 
 #..........................................................................................
-## ----------------- R CODE TO PREPARE DATA AND FIT STATISTICAL MODELS ----------------- ##
+## ------------------------- R CODE TO PREPARE DATA FOR ANALYSIS ----------------------- ##
 #..........................................................................................
 
                                           # Written by Francesco Checchi, LSHTM (Jan 2021)
@@ -192,46 +192,6 @@
   #...................................    
   ## Prepare alternative datasets of mortality
     
-    # OCHA data
-    ocha <- subset(ocha, group == "total")
-      
-      # totals for Banadir region
-      ocha_bdr <- aggregate(ocha$graves_ocha, by = list(ocha[, "date"]), FUN = sum)
-      colnames(ocha_bdr) <- c("date", "new_graves_ocha")
-      
-      # add time units
-      ocha[ "date"] <- date(ocha[, "date"])
-      ocha_bdr[, "week"] <- isoweek(ocha_bdr[, "date"])
-      ocha_bdr[, "month"] <- month(ocha_bdr[, "date"])
-      ocha_bdr[, "year"] <- year(ocha_bdr[, "date"])
-        # epidemiological year (for weeks that straddle two calendar years)
-        ocha_bdr[, "epi_year"] <- ocha_bdr[, "year"]
-        for (i in 1:nrow(ocha_bdr)) {
-          if (ocha_bdr[i, "week"] == 1 & ocha_bdr[i, "month"] == 12) {ocha_bdr[i, "epi_year"] <- ocha_bdr[i, "year"] + 1} 
-          if (ocha_bdr[i, "week"] == 52 & ocha_bdr[i, "month"] == 1) {ocha_bdr[i, "epi_year"] <- ocha_bdr[i, "year"] - 1} 
-        }      
-      ocha_bdr[, "date"] <- as.Date(ocha_bdr$date)
-        
-      # weekly totals
-        # aggregate
-        ocha_bdr_w <- aggregate(ocha_bdr[, grep("new_", colnames(ocha_bdr))], by = ocha_bdr[, c("epi_year", "week")], FUN = sum)
-        colnames(ocha_bdr_w) <- c("epi_year", "week", "new_graves_ocha")
-        
-        # add dates back in (end of week)
-        x1 <- aggregate(ocha_bdr$date, by = ocha_bdr[, c("epi_year", "week")], FUN = max)
-        colnames(x1) <- c("epi_year", "week", "date")
-        ocha_bdr_w <- merge(ocha_bdr_w, x1, by = c("epi_year", "week"))
-
-      # monthly totals
-        # aggregate
-        ocha_bdr_m <- aggregate(ocha_bdr[, grep("new_", colnames(ocha_bdr))], by = ocha_bdr[, c("year", "month")], FUN = sum)
-        colnames(ocha_bdr_m) <- c("year", "month", "new_graves_ocha")
-          
-        # add dates back in (end of month)
-        x1 <- aggregate(ocha_bdr$date, by = ocha_bdr[, c("year", "month")], FUN = max)
-        colnames(x1) <- c("year", "month", "date")
-        ocha_bdr_m <- merge(ocha_bdr_m, x1, by = c("year", "month"))      
-        
     # Barakaat committee data
     barakaat_committee <- subset(barakaat_committee, group == "all" & cause == "all")
     barakaat_committee[, "month"] <- month(barakaat_committee[, "date"])
