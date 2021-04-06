@@ -1,17 +1,12 @@
 # Burial patterns during the first COVID-19 epidemic wave in Mogadishu, Somalia: Analysis of satellite imagery
 
 # Notes on data and R analysis code
-30 March 2021
-
-Francesco Checchi
-
-Department of Infectious Disease Epidemiology
-
-Faculty of Epidemiology and Population Health, Keppel St
-
-London School of Hygiene and Tropical Medicine
-
-Francesco.checchi@lshtm.ac.uk
+30 March 2021  
+Francesco Checchi  
+Department of Infectious Disease Epidemiology  
+Faculty of Epidemiology and Population Health, Keppel St  
+London School of Hygiene and Tropical Medicine  
+Francesco.checchi@lshtm.ac.uk  
 
 ## Background on the study
 This repository contains data and R scripts required to replicate an analysis of very high-resolution satellite images covering Banadir Region (the administrative level 1 unit encompassing the capital, Mogadishu), Somalia during a period between 2016 and September 2020. The analysis was conducted by the Somali Disaster Resilience Institute (http://sdri.so/), The Satellite Applications Catapult (https://sa.catapult.org.uk/) and the London School of Hygiene and Tropical Medicine (www.lshtm.ac.uk). We sought to quantify the rate of burials over time in all cemeteries we were able to identify and source imagery for across Mogadishu. We compared pre-2020 to 2020 trends to estimate the rate of excess burials associated with the pandemic. We also scaled the curve of excess burials to varying assumed levels of crude death rate, and combined this with displacement-adjusted estimates of population size over time to quantify the number of excess deaths over Jan-Sep 2020 in Banadir Region.
