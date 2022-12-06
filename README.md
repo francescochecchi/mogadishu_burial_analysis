@@ -1,4 +1,5 @@
 # Burial patterns during the first COVID-19 epidemic wave in Mogadishu, Somalia: Analysis of satellite imagery
+Warsame et al. (2021) https://www.ijidonline.com/article/S1201-9712(21)00758-X/fulltext
 
 # Notes on data and R analysis code
 30 March 2021  
